@@ -104,6 +104,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register('simpleWorktrees.remove', (node?: WorktreeNode) => removeWorktree(api, git, provider, node));
 
+  register('simpleWorktrees.pull', (node?: WorktreeNode) => syncWorktree('pull', git, provider, node));
+  register('simpleWorktrees.push', (node?: WorktreeNode) => syncWorktree('push', git, provider, node));
+
   register('simpleWorktrees.create', () => createWorktree(api, git, provider));
 
   // --- Group commands ---
@@ -451,6 +454,53 @@ async function createWorktree(api: API, git: Git, provider: WorktreesTreeProvide
   } else if (choice === 'Open in New Window') {
     void vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(targetPath), { forceNewWindow: true });
   }
+}
+
+/**
+ * Pull or push a worktree's branch after a confirmation. Runs git in the
+ * worktree's own folder, so it acts on that worktree's branch regardless of
+ * which branch the current window is on.
+ */
+async function syncWorktree(
+  op: 'pull' | 'push',
+  git: Git,
+  provider: WorktreesTreeProvider,
+  node: WorktreeNode | undefined
+): Promise<void> {
+  if (!node || !node.tracking || node.tracking.gone) {
+    return;
+  }
+  const { branch, path: cwd } = node.worktree;
+  const { upstream, behind, ahead } = node.tracking;
+  const count = op === 'pull' ? behind : ahead;
+  if (count <= 0) {
+    return;
+  }
+  const plural = count === 1 ? 'commit' : 'commits';
+  const detail =
+    op === 'pull'
+      ? `Pull ${count} ${plural} into '${branch}' from '${upstream}'.`
+      : `Push ${count} ${plural} from '${branch}' to '${upstream}'.`;
+
+  const confirm = await vscode.window.showWarningMessage(
+    op === 'pull' ? `Pull '${branch}'?` : `Push '${branch}'?`,
+    { modal: true, detail },
+    op === 'pull' ? 'Pull' : 'Push'
+  );
+  if (!confirm) {
+    return;
+  }
+
+  try {
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `${op === 'pull' ? 'Pulling' : 'Pushing'} '${branch}'…` },
+      () => (op === 'pull' ? git.pull(cwd) : git.push(cwd))
+    );
+  } catch (err) {
+    void vscode.window.showErrorMessage(`Simple Worktrees: ${op} failed. ${errMessage(err)}`);
+    return;
+  }
+  provider.refresh();
 }
 
 async function removeWorktree(

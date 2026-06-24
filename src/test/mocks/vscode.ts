@@ -51,7 +51,7 @@ export class TreeItem {
   command?: unknown;
 
   constructor(
-    public label: string,
+    public label: string | { label: string; highlights?: [number, number][] },
     public collapsibleState: TreeItemCollapsibleState = TreeItemCollapsibleState.None
   ) {}
 }

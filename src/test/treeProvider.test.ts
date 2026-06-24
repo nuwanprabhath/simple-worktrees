@@ -35,6 +35,15 @@ function singleRepoProvider(): { provider: WorktreesTreeProvider; store: GroupSt
 const groups = (nodes: TreeNode[]) => nodes.filter((n): n is GroupTreeItem => n.kind === 'group');
 const worktrees = (nodes: TreeNode[]) => nodes.filter((n): n is WorktreeNode => n.kind === 'worktree');
 
+function labelText(n: TreeNode): string {
+  const l = (n as { label: string | { label: string } }).label;
+  return typeof l === 'string' ? l : l.label;
+}
+function boldRanges(n: TreeNode): [number, number][] | undefined {
+  const l = (n as { label: string | { highlights?: [number, number][] } }).label;
+  return typeof l === 'string' ? undefined : l.highlights;
+}
+
 describe('WorktreesTreeProvider', () => {
   afterEach(() => {
     mockWorkspace.workspaceFolders = undefined;
@@ -49,17 +58,60 @@ describe('WorktreesTreeProvider', () => {
       ['repo', 'feature']
     );
     const [main, feature] = worktrees(roots);
+    // main is up to date → no pull/push tokens.
     assert.strictEqual(main.contextValue, 'worktree:main:ungrouped');
-    assert.strictEqual(feature.contextValue, 'worktree:ungrouped');
+    // feature is behind 5 and ahead 2 → both pull and push are offered.
+    assert.strictEqual(feature.contextValue, 'worktree:ungrouped:pull:push');
     assert.strictEqual(feature.description, 'feature/x  5↓ 2↑');
   });
 
-  it('marks the currently open worktree with a check icon', async () => {
+  it('encodes pull/push capability from the tracking counts', async () => {
+    const git = makeGit({
+      '/repo': {
+        common: KEY,
+        worktrees: [
+          makeWorktree({ path: '/repo', branch: 'behind-only', isMain: true }),
+          makeWorktree({ path: '/repo.worktrees/ahead', branch: 'ahead-only' }),
+          makeWorktree({ path: '/repo.worktrees/gone', branch: 'gone-branch' })
+        ],
+        tracking: tracking({
+          'behind-only': { ahead: 0, behind: 3, upstream: 'origin/behind-only', gone: false },
+          'ahead-only': { ahead: 4, behind: 0, upstream: 'origin/ahead-only', gone: false },
+          'gone-branch': { ahead: 0, behind: 0, upstream: 'origin/gone-branch', gone: true }
+        })
+      }
+    });
+    const provider = new WorktreesTreeProvider(makeApi(['/repo']), git, new GroupStore(new MemoryMemento() as never));
+    const byLabel = new Map(worktrees(await provider.getChildren()).map((n) => [n.label, n.contextValue]));
+
+    assert.strictEqual(byLabel.get('repo'), 'worktree:main:ungrouped:pull');
+    assert.strictEqual(byLabel.get('ahead'), 'worktree:ungrouped:push');
+    assert.strictEqual(byLabel.get('gone'), 'worktree:ungrouped');
+  });
+
+  it('pins a "Current:" summary header and marks the current row with a check icon', async () => {
     mockWorkspace.workspaceFolders = [{ uri: { fsPath: '/repo.worktrees/feature' } }];
     const { provider } = singleRepoProvider();
     const roots = await provider.getChildren();
-    const feature = worktrees(roots).find((n) => n.label === 'feature')!;
+
+    // First row is the current-worktree summary: plain "Current: <name>" + counts.
+    assert.strictEqual(roots[0].kind, 'current');
+    assert.strictEqual(labelText(roots[0]), 'Current: feature');
+    assert.strictEqual((roots[0] as { description?: string }).description, 'feature/x  5↓ 2↑');
+    // No highlight, and no icon — it reads as a banner, not a worktree row.
+    assert.strictEqual(boldRanges(roots[0]), undefined);
+    assert.strictEqual((roots[0] as { iconPath?: unknown }).iconPath, undefined);
+
+    // The current worktree row keeps the check icon, with no highlight.
+    const feature = worktrees(roots).find((n) => labelText(n) === 'feature')!;
+    assert.strictEqual(boldRanges(feature), undefined);
     assert.strictEqual((feature.iconPath as { id: string }).id, 'check');
+  });
+
+  it('omits the summary header when no worktree is the open one', async () => {
+    const { provider } = singleRepoProvider();
+    const roots = await provider.getChildren();
+    assert.ok(roots.every((n) => n.kind !== 'current'));
   });
 
   it('shows ungrouped worktrees first, then groups, with a count', async () => {
@@ -90,7 +142,7 @@ describe('WorktreesTreeProvider', () => {
       children.map((n) => (n as WorktreeNode).label),
       ['feature']
     );
-    assert.strictEqual((children[0] as WorktreeNode).contextValue, 'worktree:grouped');
+    assert.strictEqual((children[0] as WorktreeNode).contextValue, 'worktree:grouped:pull:push');
   });
 
   it('reflects the persisted collapsed state on the group node', async () => {

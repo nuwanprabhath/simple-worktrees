@@ -22,6 +22,13 @@ open worktree is marked with a ✓.
 - **Compact list** — each row shows the worktree name, its branch, and the
   upstream commit counts (`36↓ 0↑` = behind ↓ / ahead ↑, just like the status
   bar). Hover for the full path, HEAD, upstream, and lock/main status.
+- **Current worktree at a glance** — the worktree open in this window is marked
+  with a ✓, and a `Current: <name>` summary row is pinned to the top of the view
+  so you can see which worktree (and branch) you're in without scanning the list.
+- **Pull / push from the row** — when a worktree is behind or ahead of its
+  upstream, hover to reveal a ↓ (pull) or ↑ (push) button. Each asks for
+  confirmation, then runs git **in that worktree's folder** — so you can pull or
+  push any worktree's branch without switching to it.
 - **Groups** — organise large numbers of worktrees (features, bugfixes,
   hotfixes…) into collapsible groups:
   - `New Group` button in the view title, or **Add to Group** on a worktree

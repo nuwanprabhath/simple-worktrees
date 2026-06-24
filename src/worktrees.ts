@@ -116,6 +116,16 @@ export class Git {
     }
     await this.run(cwd, args);
   }
+
+  /** Pull the branch checked out in `cwd` from its upstream. */
+  async pull(cwd: string): Promise<void> {
+    await this.run(cwd, ['pull']);
+  }
+
+  /** Push the branch checked out in `cwd` to its upstream. */
+  async push(cwd: string): Promise<void> {
+    await this.run(cwd, ['push']);
+  }
 }
 
 /** Parse the output of `git worktree list --porcelain`. */
