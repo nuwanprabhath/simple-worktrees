@@ -1,0 +1,299 @@
+{
+  "name": "simple-worktrees",
+  "displayName": "Simple Worktrees",
+  "description": "A minimal git worktree manager in the Source Control view: create worktrees and jump between them.",
+  "version": "0.0.1",
+  "publisher": "nuwan",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#2E5BD6",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nuwanprabhath/simple-worktrees"
+  },
+  "homepage": "https://github.com/nuwanprabhath/simple-worktrees#readme",
+  "bugs": {
+    "url": "https://github.com/nuwanprabhath/simple-worktrees/issues"
+  },
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "keywords": [
+    "git",
+    "worktree",
+    "worktrees",
+    "scm",
+    "source control"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "configuration": {
+      "title": "Simple Worktrees",
+      "properties": {
+        "simpleWorktrees.refreshInterval": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "markdownDescription": "How often (in seconds) to automatically refresh the worktree list and commit counts while the view is visible. Set to `0` to disable automatic refresh."
+        }
+      }
+    },
+    "views": {
+      "scm": [
+        {
+          "id": "simpleWorktreesView",
+          "name": "Simple Worktrees",
+          "icon": "$(git-branch)"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "simpleWorktreesView",
+        "contents": "No git repository found.\nOpen a folder that contains a git repository to manage its worktrees."
+      }
+    ],
+    "commands": [
+      {
+        "command": "simpleWorktrees.create",
+        "title": "New Worktree",
+        "category": "Simple Worktrees",
+        "icon": "$(add)"
+      },
+      {
+        "command": "simpleWorktrees.refresh",
+        "title": "Refresh",
+        "category": "Simple Worktrees",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "simpleWorktrees.open",
+        "title": "Open Worktree",
+        "category": "Simple Worktrees",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "simpleWorktrees.openNewWindow",
+        "title": "Open Worktree in New Window",
+        "category": "Simple Worktrees",
+        "icon": "$(empty-window)"
+      },
+      {
+        "command": "simpleWorktrees.copyPath",
+        "title": "Copy Path",
+        "category": "Simple Worktrees",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "simpleWorktrees.remove",
+        "title": "Remove Worktree",
+        "category": "Simple Worktrees",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "simpleWorktrees.createGroup",
+        "title": "New Group",
+        "category": "Simple Worktrees",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "simpleWorktrees.renameGroup",
+        "title": "Rename Group",
+        "category": "Simple Worktrees",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "simpleWorktrees.deleteGroup",
+        "title": "Delete Group",
+        "category": "Simple Worktrees",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "simpleWorktrees.moveGroupUp",
+        "title": "Move Group Up",
+        "category": "Simple Worktrees",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "simpleWorktrees.moveGroupDown",
+        "title": "Move Group Down",
+        "category": "Simple Worktrees",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "simpleWorktrees.addToGroup",
+        "title": "Add to Group",
+        "category": "Simple Worktrees",
+        "icon": "$(group-by-ref-type)"
+      },
+      {
+        "command": "simpleWorktrees.removeFromGroup",
+        "title": "Remove from Group",
+        "category": "Simple Worktrees",
+        "icon": "$(remove)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "simpleWorktrees.create",
+          "when": "view == simpleWorktreesView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "simpleWorktrees.createGroup",
+          "when": "view == simpleWorktreesView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "simpleWorktrees.refresh",
+          "when": "view == simpleWorktreesView",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "simpleWorktrees.addToGroup",
+          "when": "view == simpleWorktreesView && viewItem =~ /:ungrouped$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "simpleWorktrees.removeFromGroup",
+          "when": "view == simpleWorktreesView && viewItem =~ /:grouped$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "simpleWorktrees.openNewWindow",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:/",
+          "group": "inline@2"
+        },
+        {
+          "command": "simpleWorktrees.open",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:/",
+          "group": "1_open@1"
+        },
+        {
+          "command": "simpleWorktrees.openNewWindow",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:/",
+          "group": "1_open@2"
+        },
+        {
+          "command": "simpleWorktrees.addToGroup",
+          "when": "view == simpleWorktreesView && viewItem =~ /:ungrouped$/",
+          "group": "2_group@1"
+        },
+        {
+          "command": "simpleWorktrees.removeFromGroup",
+          "when": "view == simpleWorktreesView && viewItem =~ /:grouped$/",
+          "group": "2_group@1"
+        },
+        {
+          "command": "simpleWorktrees.copyPath",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:/",
+          "group": "3_util@1"
+        },
+        {
+          "command": "simpleWorktrees.remove",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:(grouped|ungrouped)$/",
+          "group": "4_danger@1"
+        },
+        {
+          "command": "simpleWorktrees.renameGroup",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "inline@1"
+        },
+        {
+          "command": "simpleWorktrees.deleteGroup",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "inline@2"
+        },
+        {
+          "command": "simpleWorktrees.moveGroupUp",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "0_order@1"
+        },
+        {
+          "command": "simpleWorktrees.moveGroupDown",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "0_order@2"
+        },
+        {
+          "command": "simpleWorktrees.renameGroup",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "1_modify@1"
+        },
+        {
+          "command": "simpleWorktrees.deleteGroup",
+          "when": "view == simpleWorktreesView && viewItem == group",
+          "group": "1_modify@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "simpleWorktrees.open",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.openNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.remove",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.renameGroup",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.deleteGroup",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.moveGroupUp",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.moveGroupDown",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.addToGroup",
+          "when": "false"
+        },
+        {
+          "command": "simpleWorktrees.removeFromGroup",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && mocha --require out/test/hook.js \"out/test/**/*.test.js\"",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.84.0",
+    "mocha": "^10.8.2",
+    "typescript": "^5.4.0"
+  }
+}
