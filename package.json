@@ -2,7 +2,7 @@
   "name": "simple-worktrees",
   "displayName": "Simple Worktrees",
   "description": "A minimal git worktree manager in the Source Control view: create worktrees and jump between them.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "nuwan",
   "license": "MIT",
   "icon": "images/icon.png",

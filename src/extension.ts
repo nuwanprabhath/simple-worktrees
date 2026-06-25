@@ -172,30 +172,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const repoKey = worktrees[0].repoKey;
     const paths = worktrees.filter((w) => w.repoKey === repoKey).map((w) => w.worktree.path);
 
-    const groups = store.groupsFor(repoKey);
-    const items: (vscode.QuickPickItem & { groupId?: string; create?: boolean })[] = [
-      { label: '$(new-folder) New group…', create: true, alwaysShow: true },
-      ...(groups.length ? [{ label: 'Groups', kind: vscode.QuickPickItemKind.Separator }] : []),
-      ...groups.map((g) => ({ label: `$(folder) ${g.name}`, groupId: g.id }))
-    ];
-    const pick = await vscode.window.showQuickPick(items, {
-      title: paths.length > 1 ? `Add ${paths.length} worktrees to group` : 'Add worktree to group',
-      placeHolder: 'Choose a group, or create a new one'
-    });
-    if (!pick) {
+    const names = store.groupsFor(repoKey).map((g) => g.name);
+    const what = paths.length === 1 ? path.basename(paths[0]) : `${paths.length} worktrees`;
+    // Single picker: pick an existing group, or just type a new name (Enter
+    // on free text creates it) — matching the Change Groups flow.
+    const name = await pickGroup(names, `Add ${what} to group (type a new name to create one)`);
+    if (!name) {
       return;
     }
-    let groupId = pick.groupId;
-    if (pick.create) {
-      const name = await promptGroupName();
-      if (!name) {
-        return;
-      }
-      groupId = await store.createGroup(repoKey, name);
-    }
-    if (groupId) {
-      await store.assign(repoKey, paths, groupId);
-    }
+    const groupId = await store.ensureGroup(repoKey, name);
+    await store.assign(repoKey, paths, groupId);
   });
 
   register('simpleWorktrees.removeFromGroup', async (node?: WorktreeNode, nodes?: TreeNode[]) => {
@@ -216,6 +202,51 @@ async function promptGroupName(value?: string): Promise<string | undefined> {
     validateInput: (v) => (v.trim() ? undefined : 'A name is required.')
   });
   return name?.trim() || undefined;
+}
+
+/**
+ * Quick pick over existing group names where typing a name that matches no
+ * group offers a live "Create group …" item, so Enter on free text just works.
+ * Resolves with the chosen (or newly typed) group name.
+ */
+function pickGroup(names: string[], placeholder: string): Promise<string | undefined> {
+  type GroupItem = vscode.QuickPickItem & { createName?: string };
+  return new Promise((resolve) => {
+    const qp = vscode.window.createQuickPick<GroupItem>();
+    qp.placeholder = placeholder;
+    const baseItems: GroupItem[] = names.map((name) => ({
+      label: name,
+      iconPath: new vscode.ThemeIcon('folder')
+    }));
+    const update = () => {
+      const value = qp.value.trim();
+      const items: GroupItem[] = [...baseItems];
+      if (value && !names.some((name) => name.toLowerCase() === value.toLowerCase())) {
+        items.push({ label: `$(plus) Create group "${value}"`, createName: value, alwaysShow: true });
+      }
+      qp.items = items;
+    };
+    update();
+
+    let accepted = false;
+    qp.onDidChangeValue(update);
+    qp.onDidAccept(() => {
+      const picked = qp.selectedItems[0] ?? qp.activeItems[0];
+      if (!picked) {
+        return;
+      }
+      accepted = true;
+      qp.hide();
+      resolve(picked.createName ?? picked.label);
+    });
+    qp.onDidHide(() => {
+      qp.dispose();
+      if (!accepted) {
+        resolve(undefined);
+      }
+    });
+    qp.show();
+  });
 }
 
 export function deactivate(): void {

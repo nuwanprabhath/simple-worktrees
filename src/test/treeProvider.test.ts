@@ -169,6 +169,8 @@ describe('WorktreesTreeProvider', () => {
       roots.map((n) => n.kind),
       ['repo', 'repo']
     );
+    // Sections are labelled by repo name, not by a worktree folder.
+    assert.deepStrictEqual(roots.map((n) => labelText(n)).sort(), ['a', 'b']);
     const children = await provider.getChildren(roots[0] as RepoTreeItem);
     assert.strictEqual(worktrees(children).length, 1);
   });

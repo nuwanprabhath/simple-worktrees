@@ -54,6 +54,16 @@ describe('GroupStore', () => {
     assert.strictEqual(store.groupOf(REPO, '/wt/b'), g);
   });
 
+  it('ensureGroup returns the existing group by name (case-insensitive), else creates it', async () => {
+    const id = await store.createGroup(REPO, 'Features');
+    assert.strictEqual(await store.ensureGroup(REPO, 'features'), id);
+    assert.strictEqual(store.groupsFor(REPO).length, 1);
+
+    const created = await store.ensureGroup(REPO, 'Bugfixes');
+    assert.notStrictEqual(created, id);
+    assert.deepStrictEqual(store.groupsFor(REPO).map((g) => g.name), ['Features', 'Bugfixes']);
+  });
+
   it('renames a group', async () => {
     const g = await store.createGroup(REPO, 'Old');
     await store.renameGroup(REPO, g, 'New');

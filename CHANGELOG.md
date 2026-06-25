@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.2
+
+- Fixed: submodules opened in the workspace are no longer shown as separate
+  repositories in the view — which had caused worktrees and groups to nest
+  under an extra repo header. Repository sections (when multiple repos are open)
+  are now labelled by repo name rather than a worktree folder name.
+- Adding a worktree to a group now uses a single picker: type a new name and
+  press Enter to create the group inline, or pick an existing one.
+
 ## 0.0.1
 
 Initial release.

@@ -8,8 +8,8 @@ import { Git, Tracking, Worktree } from './worktrees';
 /** A repository section, shown only when more than one distinct repo is open. */
 export class RepoTreeItem extends vscode.TreeItem {
   readonly kind = 'repo';
-  constructor(public readonly repoKey: string, root: string) {
-    super(path.basename(root), vscode.TreeItemCollapsibleState.Expanded);
+  constructor(public readonly repoKey: string, root: string, name: string) {
+    super(name, vscode.TreeItemCollapsibleState.Expanded);
     this.id = `repo:${repoKey}`;
     this.iconPath = new vscode.ThemeIcon('repo');
     this.contextValue = 'repo';
@@ -173,7 +173,7 @@ export class WorktreesTreeProvider
       const base =
         this.repos.length === 1
           ? this.rootForRepo(this.repos[0].repoKey)
-          : this.repos.map((r) => new RepoTreeItem(r.repoKey, r.root));
+          : this.repos.map((r) => new RepoTreeItem(r.repoKey, r.root, r.name));
       // Pin a bold summary of the current worktree to the very top.
       return this.current ? [new CurrentTreeItem(this.current.worktree, this.current.tracking), ...base] : base;
     }

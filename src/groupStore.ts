@@ -54,6 +54,14 @@ export class GroupStore {
     return id;
   }
 
+  /** Id of the group with this name (case-insensitive), creating it if needed. */
+  async ensureGroup(repoKey: string, name: string): Promise<string> {
+    const existing = this.repoState(repoKey).groups.find(
+      (g) => g.name.toLowerCase() === name.toLowerCase()
+    );
+    return existing ? existing.id : this.createGroup(repoKey, name);
+  }
+
   async renameGroup(repoKey: string, id: string, name: string): Promise<void> {
     const group = this.getGroup(repoKey, id);
     if (!group) {
