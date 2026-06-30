@@ -39,7 +39,18 @@ export async function getUniqueRepos(api: API, git: Git): Promise<RepoInfo[]> {
     } catch {
       // Fall back to the path itself; worst case it just isn't collapsed.
     }
-    if (isSubmoduleCommonDir(key)) {
+    // Exclude submodules: cheap common-dir heuristic first, then the
+    // authoritative git check (covers submodules inside linked worktrees,
+    // whose common-dir doesn't sit directly under `.git/modules`).
+    let submodule = isSubmoduleCommonDir(key);
+    if (!submodule) {
+      try {
+        submodule = (await git.superproject(repo.rootUri.fsPath)).length > 0;
+      } catch {
+        // Treat as a normal repo if the check isn't available.
+      }
+    }
+    if (submodule) {
       continue;
     }
     const group = groups.get(key) ?? [];

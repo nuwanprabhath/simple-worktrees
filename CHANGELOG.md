@@ -1,13 +1,24 @@
 # Changelog
 
+## 0.0.3
+
+- Fixed: submodules checked out inside a linked worktree are now excluded from
+  the view and the "New Worktree" repository picker too (previously only
+  top-level submodules were caught).
+- Fixed: the repository name (e.g. `paratoo-fdcp`) is shown in the view and the
+  "New Worktree" picker, instead of whichever worktree folder happened to be open
+  (e.g. `2317-species-list-field-change`).
+
 ## 0.0.2
 
-- Fixed: submodules opened in the workspace are no longer shown as separate
-  repositories in the view — which had caused worktrees and groups to nest
-  under an extra repo header. Repository sections (when multiple repos are open)
-  are now labelled by repo name rather than a worktree folder name.
+- Submodules opened in the workspace are no longer shown as separate
+  repositories in the view, which had caused worktrees and groups to nest under
+  an extra repo header.
 - Adding a worktree to a group now uses a single picker: type a new name and
   press Enter to create the group inline, or pick an existing one.
+- Groups are now listed first with the ungrouped worktrees below them (and the
+  group folder icon was dropped), so groups no longer look nested under the
+  ungrouped worktrees.
 
 ## 0.0.1
 

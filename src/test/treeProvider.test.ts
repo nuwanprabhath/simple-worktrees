@@ -114,19 +114,19 @@ describe('WorktreesTreeProvider', () => {
     assert.ok(roots.every((n) => n.kind !== 'current'));
   });
 
-  it('shows ungrouped worktrees first, then groups, with a count', async () => {
+  it('shows groups first, then ungrouped worktrees, with a count', async () => {
     const { provider, store } = singleRepoProvider();
     const g = await store.createGroup(KEY, 'Features');
     await store.assign(KEY, ['/repo.worktrees/feature'], g);
 
     const roots = await provider.getChildren();
-    // main is ungrouped and comes first; the group comes last.
-    assert.strictEqual(roots[0].kind, 'worktree');
-    assert.strictEqual((roots[0] as WorktreeNode).label, 'repo');
-    const groupNode = roots[roots.length - 1];
-    assert.strictEqual(groupNode.kind, 'group');
-    assert.strictEqual((groupNode as GroupTreeItem).label, 'Features');
-    assert.strictEqual((groupNode as GroupTreeItem).description, '1');
+    // Group comes first; the ungrouped worktree comes last.
+    assert.strictEqual(roots[0].kind, 'group');
+    assert.strictEqual((roots[0] as GroupTreeItem).label, 'Features');
+    assert.strictEqual((roots[0] as GroupTreeItem).description, '1');
+    const last = roots[roots.length - 1];
+    assert.strictEqual(last.kind, 'worktree');
+    assert.strictEqual((last as WorktreeNode).label, 'repo');
   });
 
   it('returns a group\'s worktrees as its children, flagged as grouped', async () => {

@@ -47,6 +47,17 @@ export class Git {
   }
 
   /**
+   * Working-tree path of the superproject when `cwd` is a submodule, or an
+   * empty string otherwise. Authoritative way to tell a submodule apart from a
+   * normal repo / worktree (the common-dir layout varies, especially for
+   * submodules inside linked worktrees).
+   */
+  async superproject(cwd: string): Promise<string> {
+    const { stdout } = await this.run(cwd, ['rev-parse', '--show-superproject-working-tree']);
+    return stdout.trim();
+  }
+
+  /**
    * Absolute path to the shared git directory. Every worktree of a repo
    * resolves to the same value, so it's a stable identity for "which repo".
    */

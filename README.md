@@ -36,9 +36,10 @@ open worktree is marked with a ✓.
   - **Drag and drop** worktrees between groups, drop onto empty space to
     ungroup, and drag a group header to reorder. Or use the context menu:
     Rename / Delete group, Move Up / Down, Remove from Group.
-  - Groups appear below the ungrouped worktrees, and each group's
-    collapsed/expanded state is remembered per repository — collapse a big group
-    once and it stays collapsed when you open another worktree of the same repo.
+  - Groups are listed first, with the ungrouped worktrees below them, and each
+    group's collapsed/expanded state is remembered per repository — collapse a
+    big group once and it stays collapsed when you open another worktree of the
+    same repo.
   - Grouping is metadata only — it never touches your worktrees or branches.
     Deleting a group just moves its worktrees back to ungrouped. Groups are
     stored per repository and shared across every window/worktree of that repo.

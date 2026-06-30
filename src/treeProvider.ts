@@ -33,7 +33,9 @@ export class GroupTreeItem extends vscode.TreeItem {
     );
     this.id = `group:${repoKey}:${groupId}`;
     this.description = String(count);
-    this.iconPath = new vscode.ThemeIcon('folder');
+    // No folder icon: the expand/collapse chevron already marks this as a group,
+    // and omitting it lets group labels line up with the worktree rows above
+    // (whose leaf icons sit where the chevron is) instead of looking nested.
     this.contextValue = 'group';
   }
 }
@@ -186,13 +188,13 @@ export class WorktreesTreeProvider
     return [];
   }
 
-  /** Top-level rows for a repo: ungrouped worktrees first, then groups. */
+  /** Top-level rows for a repo: groups first, then the ungrouped worktrees. */
   private rootForRepo(repoKey: string): TreeNode[] {
     const view = this.byRepo.get(repoKey);
     if (!view) {
       return [];
     }
-    return [...view.ungrouped, ...view.groupNodes];
+    return [...view.groupNodes, ...view.ungrouped];
   }
 
   private async computeSnapshot(): Promise<void> {

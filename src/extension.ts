@@ -280,7 +280,7 @@ async function pickRepository(api: API, git: Git): Promise<RepoInfo | undefined>
     return unique[0];
   }
   const picked = await vscode.window.showQuickPick(
-    unique.map((info) => ({ label: path.basename(info.root), description: info.root, info })),
+    unique.map((info) => ({ label: info.name, description: info.root, info })),
     { title: 'Select repository', placeHolder: 'Which repository should the worktree belong to?' }
   );
   return picked?.info;

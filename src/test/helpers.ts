@@ -52,6 +52,8 @@ export interface RepoFixture {
   common: string;
   worktrees: Worktree[];
   tracking?: Map<string, Tracking>;
+  /** Superproject working tree path when this root is a submodule. */
+  superproject?: string;
 }
 
 /**
@@ -80,6 +82,9 @@ export function makeGit(
         throw new Error(`no fixture for ${cwd}`);
       }
       return fixture.common;
+    },
+    async superproject(cwd: string) {
+      return find(cwd)?.superproject ?? '';
     }
   } as unknown as Git;
 }

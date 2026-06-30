@@ -46,6 +46,25 @@ describe('getUniqueRepos', () => {
     assert.strictEqual(unique[0].name, 'repo');
   });
 
+  it('excludes a submodule inside a linked worktree (common-dir not under .git/modules)', async () => {
+    // Mirrors the real case: a worktree of the main repo plus a submodule
+    // checked out inside it. The submodule's common-dir lives under
+    // .git/worktrees/<wt>/modules/, which the path heuristic misses — so the
+    // authoritative superproject check must catch it.
+    const wt = '/proj/main.worktrees/feature';
+    const sub = '/proj/main.worktrees/feature/runner';
+    const api = makeApi([wt, sub]);
+    const git = makeGit({
+      [wt]: { common: '/proj/main/.git', worktrees: [] },
+      [sub]: { common: '/proj/main/.git/worktrees/feature/modules/runner', worktrees: [], superproject: wt }
+    });
+
+    const unique = await getUniqueRepos(api, git);
+    assert.strictEqual(unique.length, 1);
+    assert.strictEqual(unique[0].repoKey, '/proj/main/.git');
+    assert.strictEqual(unique[0].name, 'main');
+  });
+
   it('names a repo after its main worktree even when only a linked worktree is open', async () => {
     const api = makeApi(['/repo.worktrees/feature']);
     const git = makeGit({ '/repo.worktrees/feature': { common: '/repo/.git', worktrees: [] } });
