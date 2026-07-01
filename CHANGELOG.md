@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.4
+
+- Fixed: clicking a worktree now always opens it in a fresh window. Reusing the
+  current window kept that window's selected-repository context, which could
+  leave you on the current worktree's branch instead of the one you clicked.
+
 ## 0.0.3
 
 - Fixed: submodules checked out inside a linked worktree are now excluded from

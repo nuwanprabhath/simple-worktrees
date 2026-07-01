@@ -91,7 +91,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register('simpleWorktrees.refresh', () => provider.refresh());
 
-  register('simpleWorktrees.open', (node?: WorktreeNode) => openWorktree(node, false));
+  // Always open in a fresh window. Reusing the current window (forceNewWindow
+  // false) keeps that window's selected-repository/git context, so switching
+  // between worktrees of the same repo could leave you on the current worktree's
+  // branch instead of the one you clicked.
+  register('simpleWorktrees.open', (node?: WorktreeNode) => openWorktree(node, true));
   register('simpleWorktrees.openNewWindow', (node?: WorktreeNode) => openWorktree(node, true));
 
   register('simpleWorktrees.copyPath', async (node?: WorktreeNode) => {
