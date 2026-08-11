@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.5
+
+- Added: a delete (trash) button on each worktree row, so removing a worktree no
+  longer requires finding "Remove Worktree" in the right-click menu. It is hidden
+  on the main worktree, which git will not let you remove.
+- The removal confirmation now names the branch and warns when the worktree has
+  uncommitted or untracked changes, so you can see what you would lose before
+  confirming.
+
 ## 0.0.4
 
 - Fixed: clicking a worktree now always opens it in a fresh window. Reusing the

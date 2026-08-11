@@ -120,6 +120,16 @@ export class Git {
     await this.run(cwd, ['worktree', 'add', '--track', '-b', localName, targetPath, remoteRef]);
   }
 
+  /**
+   * Whether the worktree at `cwd` has uncommitted or untracked changes.
+   * Mirrors what makes `git worktree remove` refuse without `--force`, so the
+   * confirmation can warn about losing work before anything is deleted.
+   */
+  async isDirty(cwd: string): Promise<boolean> {
+    const { stdout } = await this.run(cwd, ['status', '--porcelain']);
+    return stdout.trim().length > 0;
+  }
+
   async removeWorktree(cwd: string, targetPath: string, force: boolean): Promise<void> {
     const args = ['worktree', 'remove', targetPath];
     if (force) {

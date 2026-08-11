@@ -552,9 +552,27 @@ async function removeWorktree(
     return;
   }
   const name = path.basename(node.worktree.path);
+
+  // Check for uncommitted work up front so the confirmation can say what's at
+  // stake. Best-effort: if git can't tell us, fall back to just the path.
+  let dirty = false;
+  try {
+    dirty = await git.isDirty(node.worktree.path);
+  } catch {
+    // Leave `dirty` false — the force prompt below still catches it.
+  }
+
+  const detail = [
+    node.worktree.branch ? `Branch: ${node.worktree.branch}` : `Detached at ${node.worktree.head?.slice(0, 7) ?? '?'}`,
+    node.worktree.path,
+    dirty ? '\n⚠️ This worktree has uncommitted or untracked changes. They will be lost.' : ''
+  ]
+    .filter(Boolean)
+    .join('\n');
+
   const confirm = await vscode.window.showWarningMessage(
     `Remove worktree '${name}'?`,
-    { modal: true, detail: node.worktree.path },
+    { modal: true, detail },
     'Remove'
   );
   if (confirm !== 'Remove') {

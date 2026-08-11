@@ -44,7 +44,12 @@ open worktree is marked with a ✓.
     Deleting a group just moves its worktrees back to ungrouped. Groups are
     stored per repository and shared across every window/worktree of that repo.
 - **Open on click** — opens that worktree in the current window. Right-click (or
-  the inline icon) to open it in a new window, copy its path, or remove it.
+  the inline icon) to open it in a new window or copy its path.
+- **Delete from the row** — hover a worktree to reveal a 🗑 button. It confirms
+  first, showing the branch and path, and warns when the worktree has
+  uncommitted or untracked changes so you can see what you'd lose. If git
+  refuses (because of those changes), you're offered a force removal. The button
+  is hidden on the main worktree, which git won't let you remove.
 - **Refresh** button, plus automatic refresh after a worktree is created, when
   repositories open or close, and on a timer while the view is visible — so
   externally-made changes (a new worktree, a branch switch, fresh commit counts)
