@@ -2,7 +2,7 @@
   "name": "simple-worktrees",
   "displayName": "Simple Worktrees",
   "description": "A minimal git worktree manager in the Source Control view: create worktrees and jump between them.",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "publisher": "nuwan",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -71,6 +71,18 @@
         "icon": "$(add)"
       },
       {
+        "command": "simpleWorktrees.search",
+        "title": "Filter Worktrees",
+        "category": "Simple Worktrees",
+        "icon": "$(search)"
+      },
+      {
+        "command": "simpleWorktrees.clearSearch",
+        "title": "Clear Worktree Filter",
+        "category": "Simple Worktrees",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "simpleWorktrees.refresh",
         "title": "Refresh",
         "category": "Simple Worktrees",
@@ -99,6 +111,12 @@
         "title": "Remove Worktree",
         "category": "Simple Worktrees",
         "icon": "$(trash)"
+      },
+      {
+        "command": "simpleWorktrees.rename",
+        "title": "Rename Worktree",
+        "category": "Simple Worktrees",
+        "icon": "$(edit)"
       },
       {
         "command": "simpleWorktrees.pull",
@@ -158,19 +176,29 @@
     "menus": {
       "view/title": [
         {
-          "command": "simpleWorktrees.create",
+          "command": "simpleWorktrees.search",
           "when": "view == simpleWorktreesView",
           "group": "navigation@1"
         },
         {
+          "command": "simpleWorktrees.clearSearch",
+          "when": "view == simpleWorktreesView && simpleWorktrees.hasFilter",
+          "group": "navigation@2"
+        },
+        {
+          "command": "simpleWorktrees.create",
+          "when": "view == simpleWorktreesView",
+          "group": "navigation@3"
+        },
+        {
           "command": "simpleWorktrees.createGroup",
           "when": "view == simpleWorktreesView",
-          "group": "navigation@2"
+          "group": "navigation@4"
         },
         {
           "command": "simpleWorktrees.refresh",
           "when": "view == simpleWorktreesView",
-          "group": "navigation@3"
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -200,9 +228,14 @@
           "group": "inline@4"
         },
         {
-          "command": "simpleWorktrees.remove",
+          "command": "simpleWorktrees.rename",
           "when": "view == simpleWorktreesView && viewItem =~ /^worktree:(grouped|ungrouped)\\b/",
           "group": "inline@5"
+        },
+        {
+          "command": "simpleWorktrees.remove",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:(grouped|ungrouped)\\b/",
+          "group": "inline@6"
         },
         {
           "command": "simpleWorktrees.open",
@@ -238,6 +271,11 @@
           "command": "simpleWorktrees.copyPath",
           "when": "view == simpleWorktreesView && viewItem =~ /^worktree:/",
           "group": "4_util@1"
+        },
+        {
+          "command": "simpleWorktrees.rename",
+          "when": "view == simpleWorktreesView && viewItem =~ /^worktree:(grouped|ungrouped)\\b/",
+          "group": "4_util@2"
         },
         {
           "command": "simpleWorktrees.remove",
@@ -289,6 +327,10 @@
           "when": "false"
         },
         {
+          "command": "simpleWorktrees.rename",
+          "when": "false"
+        },
+        {
           "command": "simpleWorktrees.remove",
           "when": "false"
         },
@@ -332,7 +374,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "npm run compile && mocha --require out/test/hook.js \"out/test/**/*.test.js\"",
-    "package": "vsce package"
+    "package": "rm -f *.vsix && vsce package",
+    "install-ext": "code --install-extension $(ls simple-worktrees-*.vsix) --force",
+    "release": "npm run package && npm run install-ext"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

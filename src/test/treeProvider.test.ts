@@ -175,6 +175,103 @@ describe('WorktreesTreeProvider', () => {
     assert.strictEqual(worktrees(children).length, 1);
   });
 
+  describe('filtering', () => {
+    it('matches on worktree name or branch, case-insensitively', async () => {
+      const { provider } = singleRepoProvider();
+
+      provider.setFilter('FEATURE');
+      assert.deepStrictEqual(worktrees(await provider.getChildren()).map(labelText), ['feature']);
+
+      provider.setFilter('main');
+      assert.deepStrictEqual(worktrees(await provider.getChildren()).map(labelText), ['repo']);
+
+      provider.setFilter('nope');
+      assert.deepStrictEqual(worktrees(await provider.getChildren()), []);
+    });
+
+    it('highlights the matched range in the name, and clears it when the filter is reset', async () => {
+      const { provider } = singleRepoProvider();
+
+      provider.setFilter('eat');
+      const [feature] = worktrees(await provider.getChildren());
+      assert.strictEqual(labelText(feature), 'feature');
+      assert.deepStrictEqual(boldRanges(feature), [[1, 4]]);
+
+      provider.setFilter('');
+      const [repo, again] = worktrees(await provider.getChildren());
+      assert.strictEqual(boldRanges(repo), undefined);
+      assert.strictEqual(boldRanges(again), undefined);
+    });
+
+    it('does not highlight the name when only the branch matched', async () => {
+      const { provider } = singleRepoProvider();
+      provider.setFilter('feature/x');
+      const [feature] = worktrees(await provider.getChildren());
+      assert.strictEqual(boldRanges(feature), undefined);
+    });
+
+    it('keeps the "Current:" summary regardless of the filter', async () => {
+      mockWorkspace.workspaceFolders = [{ uri: { fsPath: '/repo.worktrees/feature' } }];
+      const { provider } = singleRepoProvider();
+
+      provider.setFilter('does-not-match-anything');
+      const roots = await provider.getChildren();
+      assert.strictEqual(roots[0].kind, 'current');
+      assert.strictEqual(labelText(roots[0]), 'Current: feature');
+      assert.strictEqual(worktrees(roots).length, 0);
+    });
+
+    it('hides a group once none of its worktrees match', async () => {
+      const { provider, store } = singleRepoProvider();
+      const g = await store.createGroup(KEY, 'Features');
+      await store.assign(KEY, ['/repo.worktrees/feature'], g);
+
+      provider.setFilter('feature');
+      assert.strictEqual(groups(await provider.getChildren()).length, 1);
+
+      provider.setFilter('nope');
+      assert.strictEqual(groups(await provider.getChildren()).length, 0);
+    });
+
+    it('hides a whole repo section once nothing in it matches', async () => {
+      const git = makeGit({
+        '/a': { common: '/a/.git', worktrees: [makeWorktree({ path: '/a', branch: 'main', isMain: true })] },
+        '/b': { common: '/b/.git', worktrees: [makeWorktree({ path: '/b', branch: 'other', isMain: true })] }
+      });
+      const provider = new WorktreesTreeProvider(makeApi(['/a', '/b']), git, new GroupStore(new MemoryMemento() as never));
+
+      provider.setFilter('other');
+      const roots = await provider.getChildren();
+      assert.deepStrictEqual(roots.map((n) => labelText(n)), ['b']);
+    });
+
+    it('fires onDidChangeFilterState with the query and match count', async () => {
+      const { provider } = singleRepoProvider();
+      const events: { query: string; matches: number }[] = [];
+      provider.onDidChangeFilterState((e) => events.push(e));
+
+      provider.setFilter('feature');
+      await provider.getChildren();
+      provider.setFilter('nope');
+      await provider.getChildren();
+
+      assert.deepStrictEqual(events, [
+        { query: 'feature', matches: 1 },
+        { query: 'nope', matches: 0 }
+      ]);
+    });
+
+    it('ignores a no-op setFilter (same trimmed text) rather than refreshing', async () => {
+      const { provider } = singleRepoProvider();
+      let fires = 0;
+      provider.onDidChangeTreeData(() => fires++);
+
+      provider.setFilter('feature');
+      provider.setFilter('  feature  ');
+      assert.strictEqual(fires, 1);
+    });
+  });
+
   describe('drag and drop', () => {
     it('moves a dragged worktree into the group it is dropped on', async () => {
       const { provider, store } = singleRepoProvider();

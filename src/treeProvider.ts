@@ -79,10 +79,12 @@ export class WorktreeNode extends vscode.TreeItem {
     public readonly repoKey: string,
     public readonly grouped: boolean,
     isCurrent: boolean,
-    public readonly tracking?: Tracking
+    public readonly tracking?: Tracking,
+    /** Range in the name to bold — where the active search filter matched it. */
+    highlight?: [number, number]
   ) {
     const name = path.basename(worktree.path);
-    super(name, vscode.TreeItemCollapsibleState.None);
+    super(highlight ? { label: name, highlights: [highlight] } : name, vscode.TreeItemCollapsibleState.None);
     this.id = `worktree:${repoKey}:${worktree.path}`;
     this.description = branchDescription(worktree, tracking);
 
@@ -132,6 +134,29 @@ interface RepoView {
   childrenByGroup: Map<string, WorktreeNode[]>;
 }
 
+/** Info fired whenever the filter changes or a refresh re-evaluates it. */
+export interface FilterState {
+  query: string;
+  matches: number;
+}
+
+/** Whether `wt`'s name or branch contains `query` (already lower-cased). An empty query matches everything. */
+function matchesFilter(wt: Worktree, query: string): boolean {
+  if (!query) {
+    return true;
+  }
+  if (path.basename(wt.path).toLowerCase().includes(query)) {
+    return true;
+  }
+  return !!wt.branch && wt.branch.toLowerCase().includes(query);
+}
+
+/** First occurrence of `query` (already lower-cased) in `name`, for label highlighting. */
+function matchRange(name: string, query: string): [number, number] | undefined {
+  const idx = name.toLowerCase().indexOf(query);
+  return idx === -1 ? undefined : [idx, idx + query.length];
+}
+
 export class WorktreesTreeProvider
   implements vscode.TreeDataProvider<TreeNode>, vscode.TreeDragAndDropController<TreeNode>, vscode.Disposable
 {
@@ -149,6 +174,15 @@ export class WorktreesTreeProvider
   private repos: RepoInfo[] = [];
   private byRepo = new Map<string, RepoView>();
   private current?: { worktree: Worktree; tracking?: Tracking };
+  // Bumped on every computeSnapshot() call so a slower, now-superseded call
+  // (e.g. from typing quickly in the search box) can detect it lost the race
+  // and discard its result instead of overwriting fresher state.
+  private snapshotToken = 0;
+
+  private _filterText = '';
+  private matchQuery = '';
+  private readonly _onDidChangeFilterState = new vscode.EventEmitter<FilterState>();
+  readonly onDidChangeFilterState = this._onDidChangeFilterState.event;
 
   constructor(
     private readonly api: API,
@@ -160,6 +194,21 @@ export class WorktreesTreeProvider
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  /** Text typed or pasted into the search box, as-typed (not lower-cased). */
+  get filterText(): string {
+    return this._filterText;
+  }
+
+  /** Filter the view to worktrees whose name or branch contains `text`. Empty clears it. */
+  setFilter(text: string): void {
+    const trimmed = text.trim();
+    if (trimmed === this._filterText) {
+      return;
+    }
+    this._filterText = trimmed;
+    this.refresh();
   }
 
   getTreeItem(element: TreeNode): vscode.TreeItem {
@@ -175,7 +224,7 @@ export class WorktreesTreeProvider
       const base =
         this.repos.length === 1
           ? this.rootForRepo(this.repos[0].repoKey)
-          : this.repos.map((r) => new RepoTreeItem(r.repoKey, r.root, r.name));
+          : this.repos.filter((r) => this.repoHasRows(r.repoKey)).map((r) => new RepoTreeItem(r.repoKey, r.root, r.name));
       // Pin a bold summary of the current worktree to the very top.
       return this.current ? [new CurrentTreeItem(this.current.worktree, this.current.tracking), ...base] : base;
     }
@@ -197,13 +246,29 @@ export class WorktreesTreeProvider
     return [...view.groupNodes, ...view.ungrouped];
   }
 
+  /** Whether a repo has anything left to show — always true while no filter is active. */
+  private repoHasRows(repoKey: string): boolean {
+    if (!this.matchQuery) {
+      return true;
+    }
+    const view = this.byRepo.get(repoKey);
+    if (!view) {
+      return false;
+    }
+    return view.ungrouped.length > 0 || [...view.childrenByGroup.values()].some((list) => list.length > 0);
+  }
+
   private async computeSnapshot(): Promise<void> {
-    this.repos = await getUniqueRepos(this.api, this.git);
-    this.byRepo = new Map();
-    this.current = undefined;
+    const token = ++this.snapshotToken;
+    const query = this._filterText.toLowerCase();
+
+    const repos = await getUniqueRepos(this.api, this.git);
+    const byRepo = new Map<string, RepoView>();
+    let current: { worktree: Worktree; tracking?: Tracking } | undefined;
+    let totalMatches = 0;
     const openPaths = new Set((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
 
-    for (const { repoKey, root } of this.repos) {
+    for (const { repoKey, root } of repos) {
       let worktrees: Worktree[] = [];
       try {
         worktrees = await this.git.listWorktrees(root);
@@ -227,13 +292,20 @@ export class WorktreesTreeProvider
       const childrenByGroup = new Map<string, WorktreeNode[]>();
       const ungrouped: WorktreeNode[] = [];
       for (const wt of worktrees) {
-        const groupId = this.store.groupOf(repoKey, wt.path);
+        // The "current worktree" summary reflects what's actually open, not
+        // what's searched for, so it's tracked before the filter narrows things.
         const trackingInfo = wt.branch ? tracking.get(wt.branch) : undefined;
         const isCurrent = openPaths.has(wt.path);
-        if (isCurrent && !this.current) {
-          this.current = { worktree: wt, tracking: trackingInfo };
+        if (isCurrent && !current) {
+          current = { worktree: wt, tracking: trackingInfo };
         }
-        const node = new WorktreeNode(wt, repoKey, !!groupId, isCurrent, trackingInfo);
+        if (!matchesFilter(wt, query)) {
+          continue;
+        }
+        totalMatches++;
+        const groupId = this.store.groupOf(repoKey, wt.path);
+        const highlight = query ? matchRange(path.basename(wt.path), query) : undefined;
+        const node = new WorktreeNode(wt, repoKey, !!groupId, isCurrent, trackingInfo, highlight);
         if (groupId) {
           const list = childrenByGroup.get(groupId) ?? [];
           list.push(node);
@@ -243,8 +315,10 @@ export class WorktreesTreeProvider
         }
       }
 
+      // While filtering, a group with nothing matching just clutters the list.
       const groupNodes = this.store
         .groupsFor(repoKey)
+        .filter((g) => !query || (childrenByGroup.get(g.id)?.length ?? 0) > 0)
         .map(
           (g) =>
             new GroupTreeItem(
@@ -256,8 +330,20 @@ export class WorktreesTreeProvider
             )
         );
 
-      this.byRepo.set(repoKey, { groupNodes, ungrouped, childrenByGroup });
+      byRepo.set(repoKey, { groupNodes, ungrouped, childrenByGroup });
     }
+
+    // A newer computeSnapshot has already started (e.g. the user kept typing)
+    // — its result is fresher, so discard this one instead of racing it in.
+    if (token !== this.snapshotToken) {
+      return;
+    }
+
+    this.repos = repos;
+    this.byRepo = byRepo;
+    this.current = current;
+    this.matchQuery = query;
+    this._onDidChangeFilterState.fire({ query: this._filterText, matches: totalMatches });
   }
 
   // --- TreeDragAndDropController ---

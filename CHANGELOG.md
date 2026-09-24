@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.0.7
+
+- Added: a filter/search button in the view title. Type or paste a worktree name
+  or branch and the list narrows to matches (case-insensitive), with the
+  matched text bolded in the name. A "Clear Filter" button appears while a
+  filter is active. Groups and repo sections with nothing matching are hidden,
+  and the "Current:" summary always stays visible regardless of the filter.
+
+## 0.0.6
+
+- Added: an edit (pencil) button on each worktree row to rename it. Renaming
+  moves the worktree's folder via `git worktree move`, so the repository's own
+  bookkeeping stays correct. Hidden on the main worktree.
+
 ## 0.0.5
 
 - Added: a delete (trash) button on each worktree row, so removing a worktree no

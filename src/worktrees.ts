@@ -138,6 +138,16 @@ export class Git {
     await this.run(cwd, args);
   }
 
+  /**
+   * Rename/relocate a worktree's folder. `git worktree move` relocates the
+   * checkout and updates the repo's own bookkeeping, so this is the correct
+   * way to rename a worktree (a plain `fs.rename` would leave git pointing at
+   * the old path).
+   */
+  async moveWorktree(cwd: string, sourcePath: string, targetPath: string): Promise<void> {
+    await this.run(cwd, ['worktree', 'move', sourcePath, targetPath]);
+  }
+
   /** Pull the branch checked out in `cwd` from its upstream. */
   async pull(cwd: string): Promise<void> {
     await this.run(cwd, ['pull']);

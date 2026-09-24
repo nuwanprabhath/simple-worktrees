@@ -27,6 +27,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(view, provider);
 
+  // Reflect the active search filter in the view's title description, and warn
+  // when nothing matches. Also drives the context key that shows/hides the
+  // "Clear Filter" button, since view/title `when` clauses can't see filterText.
+  context.subscriptions.push(
+    provider.onDidChangeFilterState(({ query, matches }) => {
+      view.description = query ? `Filter: "${query}"` : undefined;
+      view.message = query && matches === 0 ? `No worktrees match "${query}".` : undefined;
+      void vscode.commands.executeCommand('setContext', 'simpleWorktrees.hasFilter', !!query);
+    })
+  );
+
   // Persist each group's collapsed/expanded state (per repo, in global state)
   // so it carries across windows when you open another worktree.
   context.subscriptions.push(
@@ -107,11 +118,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   register('simpleWorktrees.remove', (node?: WorktreeNode) => removeWorktree(api, git, provider, node));
+  register('simpleWorktrees.rename', (node?: WorktreeNode) => renameWorktree(api, git, provider, node));
 
   register('simpleWorktrees.pull', (node?: WorktreeNode) => syncWorktree('pull', git, provider, node));
   register('simpleWorktrees.push', (node?: WorktreeNode) => syncWorktree('push', git, provider, node));
 
   register('simpleWorktrees.create', () => createWorktree(api, git, provider));
+
+  register('simpleWorktrees.search', () => searchWorktrees(provider));
+  register('simpleWorktrees.clearSearch', () => provider.setFilter(''));
 
   // --- Group commands ---
 
@@ -195,6 +210,46 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await store.assign(repoKey, paths, undefined);
     }
   });
+}
+
+/**
+ * Live filter box: the view updates as you type or paste (debounced, so a
+ * pasted branch name doesn't spawn a burst of overlapping git calls). Enter
+ * keeps the current text as the active filter; Escape reverts to whatever was
+ * active before the box was opened.
+ */
+function searchWorktrees(provider: WorktreesTreeProvider): void {
+  const previous = provider.filterText;
+
+  const box = vscode.window.createInputBox();
+  box.title = 'Filter Worktrees';
+  box.placeholder = 'Worktree name or branch — paste to filter';
+  box.value = previous;
+  box.ignoreFocusOut = true;
+
+  let debounce: ReturnType<typeof setTimeout> | undefined;
+  const apply = (value: string) => provider.setFilter(value);
+
+  box.onDidChangeValue((value) => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => apply(value), 150);
+  });
+
+  let accepted = false;
+  box.onDidAccept(() => {
+    clearTimeout(debounce);
+    apply(box.value);
+    accepted = true;
+    box.hide();
+  });
+  box.onDidHide(() => {
+    clearTimeout(debounce);
+    if (!accepted) {
+      apply(previous);
+    }
+    box.dispose();
+  });
+  box.show();
 }
 
 /** Prompt for a group name; rejects blanks. */
@@ -597,6 +652,72 @@ async function removeWorktree(
       void vscode.window.showErrorMessage(`Simple Worktrees: failed to remove worktree. ${errMessage(err2)}`);
       return;
     }
+  }
+  provider.refresh();
+}
+
+/**
+ * Rename a worktree by moving its folder within the same parent directory.
+ * Uses `git worktree move` rather than a plain filesystem rename, so the
+ * repo's own bookkeeping (and the folder VS Code has open, if any) stays in
+ * sync with the new path.
+ */
+async function renameWorktree(
+  api: API,
+  git: Git,
+  provider: WorktreesTreeProvider,
+  node: WorktreeNode | undefined
+): Promise<void> {
+  if (!node || node.worktree.isMain) {
+    return;
+  }
+
+  const parentDir = path.dirname(node.worktree.path);
+  const currentName = path.basename(node.worktree.path);
+
+  const name = await vscode.window.showInputBox({
+    title: 'Rename Worktree',
+    prompt: `Folder name — kept in ${parentDir}`,
+    value: currentName,
+    valueSelection: [0, currentName.length],
+    validateInput: (value) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return 'A name is required.';
+      }
+      if (/[\\/]/.test(trimmed)) {
+        return 'Name cannot contain slashes.';
+      }
+      if (trimmed !== currentName && fs.existsSync(path.join(parentDir, trimmed))) {
+        return 'A folder with this name already exists.';
+      }
+      return undefined;
+    }
+  });
+  if (!name) {
+    return;
+  }
+  const newName = name.trim();
+  if (newName === currentName) {
+    return;
+  }
+  const targetPath = path.join(parentDir, newName);
+
+  const repos = await getUniqueRepos(api, git);
+  const repo = repos.find((r) => r.repoKey === node.repoKey);
+  if (!repo) {
+    void vscode.window.showErrorMessage('Simple Worktrees: could not resolve the repository for this worktree.');
+    return;
+  }
+
+  try {
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Renaming worktree to '${newName}'…` },
+      () => git.moveWorktree(repo.root, node.worktree.path, targetPath)
+    );
+  } catch (err) {
+    void vscode.window.showErrorMessage(`Simple Worktrees: failed to rename worktree. ${errMessage(err)}`);
+    return;
   }
   provider.refresh();
 }

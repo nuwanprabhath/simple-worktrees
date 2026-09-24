@@ -11,6 +11,11 @@ open worktree is marked with a ✓.
 
 ## Features
 
+- **Filter/search** with the 🔎 button in the view title. Type — or paste a
+  branch name straight from elsewhere — and the list narrows live to worktrees
+  whose name or branch matches, with the match bolded in the name. A "Clear
+  Filter" button appears next to it while a filter is active. Groups and repo
+  sections with no matches are hidden; the `Current:` summary always stays put.
 - **Create a worktree** with the `+` button in the view title.
   - Asks for a folder name, then lets you pick a branch.
   - Created next to the main checkout using the `<repo>.worktrees/<name>` layout
@@ -50,6 +55,10 @@ open worktree is marked with a ✓.
   uncommitted or untracked changes so you can see what you'd lose. If git
   refuses (because of those changes), you're offered a force removal. The button
   is hidden on the main worktree, which git won't let you remove.
+- **Rename from the row** — hover a worktree to reveal a ✏️ button, which prompts
+  for a new folder name and moves the worktree there with `git worktree move`
+  (keeping the branch and history intact, unlike a plain filesystem rename).
+  Also hidden on the main worktree.
 - **Refresh** button, plus automatic refresh after a worktree is created, when
   repositories open or close, and on a timer while the view is visible — so
   externally-made changes (a new worktree, a branch switch, fresh commit counts)
@@ -96,41 +105,36 @@ parts most likely to break when adding features:
 
 ## Packaging a `.vsix`
 
-Build a distributable `.vsix` with [`@vscode/vsce`](https://github.com/microsoft/vscode-vsce):
-
 ```bash
-# one-off, no global install needed
-npx @vscode/vsce package
+npm run package
 ```
 
-This compiles the extension (via the `vscode:prepublish` script) and writes
-`simple-worktrees-<version>.vsix` to the project root.
-
-> If you haven't filled in a `publisher` you can pass `--allow-missing-repository`
-> or just ignore the warnings — they don't affect local installs.
+Deletes any leftover `.vsix` from the project root, compiles (via
+`vscode:prepublish`), and writes a fresh `simple-worktrees-<version>.vsix`.
+Bump `version` in `package.json` first (and add a `CHANGELOG.md` entry) —
+every packaged version here ends up installed and used.
 
 ## Installing from the `.vsix`
 
-Pick either approach:
-
-**From the command line**
-
 ```bash
-code --install-extension simple-worktrees-0.0.1.vsix
+npm run release
 ```
 
-**From the VS Code UI**
+Runs `npm run package`, then installs the freshly built `.vsix` with `code
+--install-extension … --force`. **The `--force` matters**: VS Code pins a
+gallery-installed extension to its Marketplace version, and a plain
+`--install-extension` of a local `.vsix` gets silently reverted back to the
+pinned version the next time VS Code reconciles extension state — it reports
+success at install time, then quietly disappears. `--force` overrides the pin.
 
-1. Open the **Extensions** view (<kbd>⇧⌘X</kbd> / <kbd>Ctrl+Shift+X</kbd>).
-2. Click the **`...`** menu in the top-right → **Install from VSIX…**.
-3. Select the generated `.vsix` file.
+After running it, **reload the window** (`Cmd+Shift+P` → *Developer: Reload
+Window*) — installing doesn't hot-swap an extension that's already loaded in a
+running window. Check **Extensions → Simple Worktrees → Details** shows the
+new version to confirm the reload picked it up.
 
-Reload the window if prompted. The **Simple Worktrees** view then appears under
-**Source Control** in any window that has a git repository open.
-
-To update later, bump `version` in `package.json`, re-run `vsce package`, and
-install the new `.vsix` the same way (it replaces the old one). Uninstall from
-the Extensions view like any other extension.
+You can also install manually: **Extensions** view (<kbd>⇧⌘X</kbd>) → **`...`**
+menu → **Install from VSIX…** — but the same pin-revert risk applies without
+`--force`; prefer `npm run release`.
 
 ## Publishing to the Marketplace
 
